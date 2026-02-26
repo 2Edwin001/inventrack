@@ -1,4 +1,6 @@
-export default function Input({
+import { forwardRef } from 'react'
+
+const Input = forwardRef(function Input({
   label,
   error,
   hint,
@@ -6,7 +8,7 @@ export default function Input({
   required,
   className = '',
   ...props
-}) {
+}, ref) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -19,6 +21,7 @@ export default function Input({
         </label>
       )}
       <input
+        ref={ref}
         id={id}
         className={`
           w-full rounded-lg border px-3 py-2 text-sm transition-colors
@@ -41,4 +44,6 @@ export default function Input({
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
-}
+})
+
+export default Input
