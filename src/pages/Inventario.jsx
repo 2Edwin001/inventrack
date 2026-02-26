@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { supabase } from '../lib/supabaseClient'
 import { useInventario } from '../hooks/useInventario'
@@ -330,14 +331,17 @@ function DetailModal({ item, onClose, onEdit }) {
 // ─── Página principal ─────────────────────────────────────────
 
 export default function Inventario() {
-  // Filtros
+  const location = useLocation()
+
+  // Filtros — sedeId puede venir pre-aplicado desde la página Sedes
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filters, setFilters] = useState({
-    sedeId: '', categoria: '',
+  const [filters, setFilters] = useState(() => ({
+    sedeId: location.state?.sedeId ?? '',
+    categoria: '',
     precioMin: '', precioMax: '',
     stockMin: '', stockMax: '',
-  })
+  }))
   const [page, setPage] = useState(1)
 
   // Modales

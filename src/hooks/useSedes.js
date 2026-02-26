@@ -12,7 +12,7 @@ export function useSedes() {
     try {
       const { data: rows, error: qErr } = await supabase
         .from('sedes')
-        .select('id, nombre, ciudad, direccion, created_at, items(count)')
+        .select('id, nombre, ciudad, direccion, created_at, items(precio, stock, stock_minimo)')
         .order('nombre')
       if (qErr) throw qErr
       setData(rows ?? [])

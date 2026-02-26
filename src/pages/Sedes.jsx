@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { supabase } from '../lib/supabaseClient'
 import { useSedes } from '../hooks/useSedes'
@@ -6,14 +7,32 @@ import Modal from '../components/Modal'
 import Button from '../components/Button'
 import EmptyState from '../components/EmptyState'
 
-// --- Icons ---
+// ─── Helpers ──────────────────────────────────────────────────
+
+const fmt$ = (n) =>
+  new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(n ?? 0)
+
+function sedeStats(items = []) {
+  return {
+    itemCount: items.length,
+    valorTotal: items.reduce((sum, i) => sum + (i.precio ?? 0) * (i.stock ?? 0), 0),
+    stockCritico: items.filter((i) => (i.stock ?? 0) <= (i.stock_minimo ?? 0)).length,
+  }
+}
+
+// ─── Icons ────────────────────────────────────────────────────
+
 const PlusIcon = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
   </svg>
 )
 
-const BuildingIcon = ({ className = 'h-8 w-8 text-gray-400 dark:text-gray-500' }) => (
+const BuildingIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
   </svg>
@@ -33,28 +52,29 @@ const TrashIcon = () => (
 )
 
 const MapPinIcon = () => (
-  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+  <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
   </svg>
 )
 
-const CubeIcon = () => (
-  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+const ArrowRightIcon = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
   </svg>
 )
 
-// --- SedeForm ---
+// ─── SedeForm ─────────────────────────────────────────────────
+
+const inputCls =
+  'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500'
+
 function SedeForm({ defaultValues = {}, onSubmit, onCancel, loading }) {
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm({ defaultValues })
-
-  const inputCls =
-    'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500'
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -109,134 +129,177 @@ function SedeForm({ defaultValues = {}, onSubmit, onCancel, loading }) {
   )
 }
 
-// --- LoadingSkeleton ---
+// ─── LoadingSkeleton ──────────────────────────────────────────
+
 function LoadingSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {[...Array(3)].map((_, i) => (
-        <div
-          key={i}
-          className="animate-pulse rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-800"
-        >
-          <div className="mb-4 flex items-center gap-3">
+        <div key={i} className="animate-pulse rounded-2xl bg-white p-6 shadow-sm dark:bg-gray-800">
+          <div className="mb-4 flex items-start gap-3">
             <div className="h-10 w-10 rounded-xl bg-gray-200 dark:bg-gray-700" />
             <div className="flex-1 space-y-2">
               <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-700" />
               <div className="h-3 w-1/2 rounded bg-gray-200 dark:bg-gray-700" />
             </div>
           </div>
-          <div className="mb-3 h-3 w-full rounded bg-gray-200 dark:bg-gray-700" />
-          <div className="h-px bg-gray-200 dark:bg-gray-700" />
-          <div className="mt-3 h-3 w-1/3 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="mb-4 h-3 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            {[...Array(3)].map((__, j) => (
+              <div key={j} className="h-14 rounded-xl bg-gray-200 dark:bg-gray-700" />
+            ))}
+          </div>
+          <div className="h-9 rounded-lg bg-gray-200 dark:bg-gray-700" />
         </div>
       ))}
     </div>
   )
 }
 
-// --- SedeCard ---
-function SedeCard({ sede, onEdit, onDelete }) {
-  const itemCount = sede.items?.[0]?.count ?? 0
+// ─── SedeCard ─────────────────────────────────────────────────
+
+function SedeCard({ sede, onEdit, onDelete, onVerInventario }) {
+  const { itemCount, valorTotal, stockCritico } = sedeStats(sede.items)
 
   return (
-    <div className="group relative flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-shadow hover:shadow-md dark:bg-gray-800 dark:ring-gray-700">
-      {/* Actions */}
-      <div className="absolute right-4 top-4 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <button
-          onClick={() => onEdit(sede)}
-          className="rounded-lg p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400"
-          title="Editar"
-        >
-          <PencilIcon />
-        </button>
-        <button
-          onClick={() => onDelete(sede)}
-          className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-          title="Eliminar"
-        >
-          <TrashIcon />
-        </button>
-      </div>
+    <div className="flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 transition-shadow hover:shadow-md dark:bg-gray-800 dark:ring-gray-700">
+      {/* Header */}
+      <div className="p-5 pb-4">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          {/* Icon + name */}
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
+              <BuildingIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">
+                {sede.nombre}
+              </h3>
+              <p className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+                <MapPinIcon />
+                <span className="truncate">{sede.ciudad}</span>
+              </p>
+            </div>
+          </div>
 
-      {/* Icon + name */}
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-          <BuildingIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          {/* Edit / Delete */}
+          <div className="flex shrink-0 gap-1">
+            <button
+              onClick={() => onEdit(sede)}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400"
+              title="Editar"
+            >
+              <PencilIcon />
+            </button>
+            <button
+              onClick={() => onDelete(sede)}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+              title="Eliminar"
+            >
+              <TrashIcon />
+            </button>
+          </div>
         </div>
-        <div className="min-w-0 flex-1 pr-14">
-          <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">
-            {sede.nombre}
-          </h3>
-          <p className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-            <MapPinIcon />
-            {sede.ciudad}
+
+        {/* Dirección */}
+        {sede.direccion && (
+          <p className="mb-3 line-clamp-1 text-sm text-gray-500 dark:text-gray-400">
+            {sede.direccion}
           </p>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2">
+          {/* Total ítems */}
+          <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Ítems</p>
+            <p className="mt-0.5 text-xl font-bold text-gray-900 dark:text-white">{itemCount}</p>
+          </div>
+
+          {/* Valor total */}
+          <div className="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/40">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Valor</p>
+            <p className="mt-0.5 truncate text-sm font-bold text-gray-900 dark:text-white">
+              {fmt$(valorTotal)}
+            </p>
+          </div>
+
+          {/* Stock crítico */}
+          <div
+            className={`rounded-xl p-3 ${
+              stockCritico > 0
+                ? 'bg-red-50 dark:bg-red-900/20'
+                : 'bg-gray-50 dark:bg-gray-700/40'
+            }`}
+          >
+            <p
+              className={`text-xs ${
+                stockCritico > 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              Críticos
+            </p>
+            <p
+              className={`mt-0.5 text-xl font-bold ${
+                stockCritico > 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-gray-900 dark:text-white'
+              }`}
+            >
+              {stockCritico}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Dirección */}
-      {sede.direccion && (
-        <p className="mb-4 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
-          {sede.direccion}
-        </p>
-      )}
-
-      {/* Footer */}
-      <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 dark:border-gray-700">
-        <span className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-          <CubeIcon />
-          <span className="font-medium text-gray-700 dark:text-gray-300">{itemCount}</span>
-          {itemCount === 1 ? 'ítem' : 'ítems'}
-        </span>
-        <span className="text-xs text-gray-400 dark:text-gray-500">
-          {new Date(sede.created_at).toLocaleDateString('es-CO', {
-            year: 'numeric',
-            month: 'short',
-          })}
-        </span>
+      {/* Footer — Ver inventario */}
+      <div className="border-t border-gray-100 p-3 dark:border-gray-700">
+        <button
+          onClick={() => onVerInventario(sede)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+        >
+          Ver inventario
+          <ArrowRightIcon />
+        </button>
       </div>
     </div>
   )
 }
 
-// --- Main Page ---
+// ─── Página principal ─────────────────────────────────────────
+
 export default function Sedes() {
+  const navigate = useNavigate()
   const { data: sedes, loading, error, refetch } = useSedes()
 
   const [modalCreate, setModalCreate] = useState(false)
-  const [modalEdit, setModalEdit] = useState(null)   // sede object | null
-  const [modalDelete, setModalDelete] = useState(null) // sede object | null
+  const [modalEdit, setModalEdit] = useState(null)
+  const [modalDelete, setModalDelete] = useState(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [formError, setFormError] = useState(null)
 
-  const openCreate = useCallback(() => {
-    setFormError(null)
-    setModalCreate(true)
-  }, [])
+  const openCreate = useCallback(() => { setFormError(null); setModalCreate(true) }, [])
+  const openEdit = useCallback((sede) => { setFormError(null); setModalEdit(sede) }, [])
+  const openDelete = useCallback((sede) => { setFormError(null); setModalDelete(sede) }, [])
 
-  const openEdit = useCallback((sede) => {
-    setFormError(null)
-    setModalEdit(sede)
-  }, [])
-
-  const openDelete = useCallback((sede) => {
-    setFormError(null)
-    setModalDelete(sede)
-  }, [])
+  const handleVerInventario = useCallback(
+    (sede) => navigate('/inventario', { state: { sedeId: sede.id } }),
+    [navigate],
+  )
 
   // --- Create ---
   const handleCreate = useCallback(
     async (values) => {
       setSaving(true)
       setFormError(null)
-      const { error: e } = await supabase.from('sedes').insert([
-        {
-          nombre: values.nombre.trim(),
-          ciudad: values.ciudad.trim(),
-          direccion: values.direccion?.trim() || null,
-        },
-      ])
+      const { error: e } = await supabase.from('sedes').insert([{
+        nombre: values.nombre.trim(),
+        ciudad: values.ciudad.trim(),
+        direccion: values.direccion?.trim() || null,
+      }])
       setSaving(false)
       if (e) { setFormError(e.message); return }
       setModalCreate(false)
@@ -278,7 +341,7 @@ export default function Sedes() {
     refetch()
   }, [modalDelete, refetch])
 
-  const deleteItemCount = modalDelete?.items?.[0]?.count ?? 0
+  const deleteItemCount = modalDelete?.items?.length ?? 0
 
   return (
     <div className="space-y-6">
@@ -287,7 +350,9 @@ export default function Sedes() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Sedes</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Administra las ubicaciones donde se gestiona el inventario.
+            {loading
+              ? 'Cargando…'
+              : `${sedes.length} ${sedes.length === 1 ? 'sede registrada' : 'sedes registradas'}`}
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -312,18 +377,8 @@ export default function Sedes() {
             title="Sin sedes registradas"
             description="Crea tu primera sede para comenzar a asociar inventario por ubicación."
             icon={
-              <svg
-                className="h-8 w-8 text-gray-400 dark:text-gray-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"
-                />
+              <svg className="h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
               </svg>
             }
             action={
@@ -335,25 +390,21 @@ export default function Sedes() {
           />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {sedes.map((sede) => (
             <SedeCard
               key={sede.id}
               sede={sede}
               onEdit={openEdit}
               onDelete={openDelete}
+              onVerInventario={handleVerInventario}
             />
           ))}
         </div>
       )}
 
-      {/* Create Modal */}
-      <Modal
-        isOpen={modalCreate}
-        onClose={() => setModalCreate(false)}
-        title="Nueva sede"
-        size="sm"
-      >
+      {/* Modal: Crear */}
+      <Modal isOpen={modalCreate} onClose={() => setModalCreate(false)} title="Nueva sede" size="sm">
         {formError && (
           <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
             {formError}
@@ -367,13 +418,8 @@ export default function Sedes() {
         />
       </Modal>
 
-      {/* Edit Modal */}
-      <Modal
-        isOpen={!!modalEdit}
-        onClose={() => setModalEdit(null)}
-        title="Editar sede"
-        size="sm"
-      >
+      {/* Modal: Editar */}
+      <Modal isOpen={!!modalEdit} onClose={() => setModalEdit(null)} title="Editar sede" size="sm">
         {formError && (
           <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
             {formError}
@@ -388,28 +434,18 @@ export default function Sedes() {
         />
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal
-        isOpen={!!modalDelete}
-        onClose={() => setModalDelete(null)}
-        title="Eliminar sede"
-        size="sm"
-      >
+      {/* Modal: Eliminar */}
+      <Modal isOpen={!!modalDelete} onClose={() => setModalDelete(null)} title="Eliminar sede" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-300">
             ¿Estás seguro de eliminar{' '}
-            <span className="font-semibold text-gray-900 dark:text-white">
-              {modalDelete?.nombre}
-            </span>
-            ?
+            <span className="font-semibold text-gray-900 dark:text-white">{modalDelete?.nombre}</span>?
           </p>
 
           {deleteItemCount > 0 && (
             <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
               Esta sede tiene{' '}
-              <strong>
-                {deleteItemCount} {deleteItemCount === 1 ? 'ítem' : 'ítems'}
-              </strong>{' '}
+              <strong>{deleteItemCount} {deleteItemCount === 1 ? 'ítem' : 'ítems'}</strong>{' '}
               asociados. Al eliminarla, esos ítems quedarán sin sede asignada.
             </div>
           )}
@@ -421,12 +457,8 @@ export default function Sedes() {
           )}
 
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setModalDelete(null)}>
-              Cancelar
-            </Button>
-            <Button variant="danger" loading={deleting} onClick={handleDelete}>
-              Eliminar
-            </Button>
+            <Button variant="secondary" onClick={() => setModalDelete(null)}>Cancelar</Button>
+            <Button variant="danger" loading={deleting} onClick={handleDelete}>Eliminar</Button>
           </div>
         </div>
       </Modal>
