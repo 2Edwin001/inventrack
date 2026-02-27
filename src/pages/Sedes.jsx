@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { supabase } from '../lib/supabaseClient'
 import { useSedes } from '../hooks/useSedes'
+import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import EmptyState from '../components/EmptyState'
@@ -158,7 +159,7 @@ function LoadingSkeleton() {
 
 // ─── SedeCard ─────────────────────────────────────────────────
 
-function SedeCard({ sede, onEdit, onDelete, onVerInventario }) {
+function SedeCard({ sede, onEdit, onDelete, onVerInventario, isAdmin }) {
   const { itemCount, valorTotal, stockCritico } = sedeStats(sede.items)
 
   return (
@@ -191,13 +192,15 @@ function SedeCard({ sede, onEdit, onDelete, onVerInventario }) {
             >
               <PencilIcon />
             </button>
-            <button
-              onClick={() => onDelete(sede)}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-              title="Eliminar"
-            >
-              <TrashIcon />
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => onDelete(sede)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                title="Eliminar"
+              >
+                <TrashIcon />
+              </button>
+            )}
           </div>
         </div>
 
@@ -272,6 +275,7 @@ function SedeCard({ sede, onEdit, onDelete, onVerInventario }) {
 
 export default function Sedes() {
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
   const { data: sedes, loading, error, refetch } = useSedes()
 
   const [modalCreate, setModalCreate] = useState(false)
@@ -355,10 +359,12 @@ export default function Sedes() {
               : `${sedes.length} ${sedes.length === 1 ? 'sede registrada' : 'sedes registradas'}`}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <PlusIcon />
-          Nueva sede
-        </Button>
+        {isAdmin && (
+          <Button onClick={openCreate}>
+            <PlusIcon />
+            Nueva sede
+          </Button>
+        )}
       </div>
 
       {/* Error banner */}
@@ -382,10 +388,12 @@ export default function Sedes() {
               </svg>
             }
             action={
-              <Button onClick={openCreate}>
-                <PlusIcon />
-                Crear sede
-              </Button>
+              isAdmin ? (
+                <Button onClick={openCreate}>
+                  <PlusIcon />
+                  Crear sede
+                </Button>
+              ) : null
             }
           />
         </div>
@@ -398,6 +406,7 @@ export default function Sedes() {
               onEdit={openEdit}
               onDelete={openDelete}
               onVerInventario={handleVerInventario}
+              isAdmin={isAdmin}
             />
           ))}
         </div>
@@ -434,34 +443,36 @@ export default function Sedes() {
         />
       </Modal>
 
-      {/* Modal: Eliminar */}
-      <Modal isOpen={!!modalDelete} onClose={() => setModalDelete(null)} title="Eliminar sede" size="sm">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            ¿Estás seguro de eliminar{' '}
-            <span className="font-semibold text-gray-900 dark:text-white">{modalDelete?.nombre}</span>?
-          </p>
+      {/* Modal: Eliminar — solo ADMIN */}
+      {isAdmin && (
+        <Modal isOpen={!!modalDelete} onClose={() => setModalDelete(null)} title="Eliminar sede" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              ¿Estás seguro de eliminar{' '}
+              <span className="font-semibold text-gray-900 dark:text-white">{modalDelete?.nombre}</span>?
+            </p>
 
-          {deleteItemCount > 0 && (
-            <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-              Esta sede tiene{' '}
-              <strong>{deleteItemCount} {deleteItemCount === 1 ? 'ítem' : 'ítems'}</strong>{' '}
-              asociados. Al eliminarla, esos ítems quedarán sin sede asignada.
+            {deleteItemCount > 0 && (
+              <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                Esta sede tiene{' '}
+                <strong>{deleteItemCount} {deleteItemCount === 1 ? 'ítem' : 'ítems'}</strong>{' '}
+                asociados. Al eliminarla, esos ítems quedarán sin sede asignada.
+              </div>
+            )}
+
+            {formError && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                {formError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setModalDelete(null)}>Cancelar</Button>
+              <Button variant="danger" loading={deleting} onClick={handleDelete}>Eliminar</Button>
             </div>
-          )}
-
-          {formError && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
-              {formError}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setModalDelete(null)}>Cancelar</Button>
-            <Button variant="danger" loading={deleting} onClick={handleDelete}>Eliminar</Button>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </div>
   )
 }

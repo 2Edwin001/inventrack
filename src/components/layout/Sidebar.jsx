@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const navigation = [
   {
@@ -49,6 +50,8 @@ const navigation = [
 ]
 
 export default function Sidebar() {
+  const { logout } = useAuth()
+
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-slate-900">
       {/* Logo */}
@@ -62,7 +65,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-0.5">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-5">
         <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
           Menú principal
         </p>
@@ -85,8 +88,17 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-slate-700/50 px-5 py-4">
-        <p className="text-xs text-slate-600 text-center">InvenTrack v0.1.0</p>
+      <div className="border-t border-slate-700/50 px-3 py-3">
+        <button
+          onClick={logout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-all duration-150 hover:bg-slate-800 hover:text-red-400"
+        >
+          <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+          </svg>
+          Cerrar sesión
+        </button>
+        <p className="mt-2 text-center text-xs text-slate-600">InvenTrack v0.1.0</p>
       </div>
     </aside>
   )

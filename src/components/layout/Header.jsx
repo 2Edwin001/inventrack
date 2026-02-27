@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
 import { useAlerts } from '../../context/AlertContext'
+import { useAuth } from '../../context/AuthContext'
 
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard',
@@ -11,13 +12,23 @@ const PAGE_TITLES = {
   '/reportes': 'Reportes',
 }
 
+const ROL_VARIANT = {
+  ADMIN: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+  OPERADOR: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+}
+
 export default function Header() {
   const { pathname } = useLocation()
   const { isDark, toggleTheme } = useTheme()
   const { alertCount } = useAlerts()
+  const { user, profile, logout } = useAuth()
   const [search, setSearch] = useState('')
 
   const title = PAGE_TITLES[pathname] ?? 'InvenTrack'
+  const displayName =
+    profile?.nombre || user?.email?.split('@')[0] || 'Usuario'
+  const initial = displayName.charAt(0).toUpperCase()
+  const rol = profile?.rol ?? 'OPERADOR'
 
   return (
     <header className="fixed left-64 right-0 top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-100 bg-white px-6 dark:border-gray-700/60 dark:bg-gray-800">
@@ -30,10 +41,13 @@ export default function Header() {
       <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
 
       {/* Search */}
-      <div className="relative flex-1 max-w-sm">
+      <div className="relative max-w-sm flex-1">
         <svg
           className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-          fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 10.607z" />
         </svg>
@@ -80,10 +94,36 @@ export default function Header() {
           )}
         </button>
 
-        {/* User avatar */}
-        <div className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white select-none">
-          U
+        {/* Divider */}
+        <div className="mx-2 h-6 w-px bg-gray-200 dark:bg-gray-700" />
+
+        {/* User info */}
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white select-none">
+            {initial}
+          </div>
+          <div className="hidden flex-col sm:flex">
+            <span className="text-sm font-medium leading-tight text-gray-900 dark:text-white">
+              {displayName}
+            </span>
+            <span
+              className={`mt-0.5 inline-flex w-fit items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROL_VARIANT[rol]}`}
+            >
+              {rol}
+            </span>
+          </div>
         </div>
+
+        {/* Logout */}
+        <button
+          onClick={logout}
+          title="Cerrar sesión"
+          className="ml-1 rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+          </svg>
+        </button>
       </div>
     </header>
   )
